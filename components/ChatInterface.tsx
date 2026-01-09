@@ -33,29 +33,29 @@ const parseInlineFormatting = (text: string) => {
 
 const renderFormattedMessage = (text: string, sender: Sender) => {
   if (sender === Sender.User) {
-    return <div className="whitespace-pre-wrap font-sans">{text}</div>;
+    return <div className="whitespace-pre-wrap font-sans text-[15px] md:text-base">{text}</div>;
   }
 
   // Pre-process: ensure newlines are respected but excessive ones are trimmed
   const lines = text.split('\n');
   
   return (
-    <div className="space-y-3 font-sans text-sm md:text-base leading-relaxed">
+    <div className="space-y-3 font-sans text-[15px] md:text-base leading-relaxed">
       {lines.map((line, i) => {
         const trimmed = line.trim();
-        if (!trimmed) return <div key={i} className="h-2" />;
+        if (!trimmed) return <div key={i} className="h-1 md:h-2" />;
 
         // Headings (###) - Use Serif Font
         if (trimmed.startsWith('### ')) {
            return (
-             <h3 key={i} className="text-lg md:text-xl font-serif font-bold text-blue-800 dark:text-blue-300 mt-6 mb-2 border-l-4 border-blue-500 pl-3">
+             <h3 key={i} className="text-lg md:text-xl font-serif font-bold text-blue-800 dark:text-blue-300 mt-5 md:mt-6 mb-2 border-l-4 border-blue-500 pl-3">
                {parseInlineFormatting(trimmed.replace(/^###\s+/, ''))}
              </h3>
            );
         }
         if (trimmed.startsWith('## ')) {
            return (
-             <h2 key={i} className="text-xl md:text-2xl font-serif font-bold text-blue-900 dark:text-blue-200 mt-8 mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
+             <h2 key={i} className="text-xl md:text-2xl font-serif font-bold text-blue-900 dark:text-blue-200 mt-6 md:mt-8 mb-3 md:mb-4 border-b border-gray-200 dark:border-gray-700 pb-2">
                {parseInlineFormatting(trimmed.replace(/^##\s+/, ''))}
              </h2>
            );
@@ -64,8 +64,8 @@ const renderFormattedMessage = (text: string, sender: Sender) => {
         // Bullet Points
         if (trimmed.startsWith('- ') || trimmed.startsWith('• ') || trimmed.startsWith('* ')) {
           return (
-            <div key={i} className="flex gap-3 pl-2 group">
-              <span className="text-blue-500 dark:text-blue-400 mt-1.5 text-[8px] shrink-0 group-hover:scale-125 transition-transform">●</span>
+            <div key={i} className="flex gap-2 md:gap-3 pl-1 md:pl-2 group">
+              <span className="text-blue-500 dark:text-blue-400 mt-2 text-[6px] md:text-[8px] shrink-0 group-hover:scale-125 transition-transform">●</span>
               <div className="text-gray-700 dark:text-gray-300">
                 {parseInlineFormatting(trimmed.replace(/^[-•*]\s+/, ''))}
               </div>
@@ -79,8 +79,8 @@ const renderFormattedMessage = (text: string, sender: Sender) => {
           const number = match ? match[1] : '';
           const content = trimmed.replace(/^\d+\.\s/, '');
           return (
-             <div key={i} className="flex gap-3 pl-2 group">
-                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 min-w-[24px] text-right shrink-0">{number}.</span>
+             <div key={i} className="flex gap-2 md:gap-3 pl-1 md:pl-2 group">
+                <span className="font-mono font-bold text-blue-600 dark:text-blue-400 min-w-[20px] md:min-w-[24px] text-right shrink-0">{number}.</span>
                 <div className="text-gray-700 dark:text-gray-300">
                    {parseInlineFormatting(content)}
                 </div>
@@ -90,16 +90,13 @@ const renderFormattedMessage = (text: string, sender: Sender) => {
 
         // Table Row (Simple detection)
         if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-           // Basic rendering for markdown tables to text if complicated, 
-           // usually Gemini returns text structure if not forced otherwise, 
-           // but let's handle simple pipe tables
            const cells = trimmed.split('|').filter(c => c.trim() !== '');
            if (trimmed.includes('---')) return null; // Skip separator lines
            
            return (
-              <div key={i} className="grid grid-cols-3 gap-2 bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs">
+              <div key={i} className="grid grid-cols-3 gap-2 bg-gray-100 dark:bg-gray-800 p-2 rounded text-xs overflow-x-auto">
                  {cells.map((cell, idx) => (
-                    <div key={idx} className="font-medium text-gray-800 dark:text-gray-200 truncate">
+                    <div key={idx} className="font-medium text-gray-800 dark:text-gray-200 truncate min-w-[80px]">
                        {cell.trim()}
                     </div>
                  ))}
@@ -644,24 +641,24 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     <div className="flex flex-col h-full bg-gray-50 dark:bg-black md:bg-white md:dark:bg-neutral-900 md:rounded-xl md:border border-gray-200 dark:border-neutral-800 overflow-hidden shadow-sm md:shadow-2xl relative transition-colors duration-300">
       
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 md:space-y-8 bg-gray-50 dark:bg-black md:bg-white md:dark:bg-neutral-900 scrollbar-hide transition-colors duration-300">
+      <div className="flex-1 overflow-y-auto p-3 md:p-6 space-y-5 md:space-y-8 bg-gray-50 dark:bg-black md:bg-white md:dark:bg-neutral-900 scrollbar-hide transition-colors duration-300">
         <div className="max-w-3xl mx-auto space-y-6">
           {messages.map((msg, index) => (
-            <div key={msg.id} className={`w-full flex gap-4 ${msg.sender === Sender.User ? 'justify-end' : 'justify-start'}`}>
+            <div key={msg.id} className={`w-full flex gap-3 md:gap-4 ${msg.sender === Sender.User ? 'justify-end' : 'justify-start'}`}>
               
               {/* Bot Avatar */}
               {msg.sender === Sender.Bot && (
                 <div className="shrink-0 mt-1">
-                   <div className="w-8 h-8 rounded-full border border-gray-200 dark:border-neutral-700 bg-white dark:bg-black p-1 flex items-center justify-center">
+                   <div className="w-7 h-7 md:w-8 md:h-8 rounded-full border border-gray-200 dark:border-neutral-700 bg-white dark:bg-black p-1 flex items-center justify-center">
                       <DharmaLogo className="w-full h-full" />
                    </div>
                 </div>
               )}
 
               <div 
-                className={`relative group max-w-[85%] lg:max-w-[85%] ${
+                className={`relative group max-w-[90%] md:max-w-[85%] ${
                   msg.sender === Sender.User 
-                    ? 'bg-[#f0f4f9] dark:bg-[#1e1f20] text-gray-900 dark:text-gray-100 rounded-[20px] px-5 py-3.5' 
+                    ? 'bg-[#f0f4f9] dark:bg-[#1e1f20] text-gray-900 dark:text-gray-100 rounded-[18px] md:rounded-[20px] px-4 py-3 md:px-5 md:py-3.5' 
                     : 'bg-transparent text-gray-900 dark:text-gray-100 px-0 py-0 w-full'
                 }`}
               >
@@ -698,7 +695,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
 
                 {/* Action Buttons for Bot Messages */}
                 {msg.sender === Sender.Bot && (
-                  <div className="flex flex-wrap gap-2 md:gap-3 mt-3 pt-3 justify-start opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex flex-wrap gap-2 md:gap-3 mt-2 md:mt-3 pt-2 md:pt-3 justify-start opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                      {/* Read Aloud Button */}
                      <button
                        onClick={() => speakMessage(msg.text, msg.id)}
@@ -791,16 +788,16 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
       </div>
 
       {/* Settings Bar */}
-      <div className="px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-black border-t border-gray-200 dark:border-neutral-800 flex items-center gap-2 md:gap-4 text-xs overflow-x-auto no-scrollbar whitespace-nowrap justify-center">
-         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-3 py-1.5 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[10px] md:text-xs shadow-sm">
+      <div className="px-2 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-black border-t border-gray-200 dark:border-neutral-800 flex items-center gap-2 md:gap-4 text-xs overflow-x-auto no-scrollbar whitespace-nowrap justify-center">
+         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-2.5 md:px-3 py-1.5 md:py-2 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[11px] md:text-xs shadow-sm">
             <input type="checkbox" checked={useThinking} onChange={(e) => setUseThinking(e.target.checked)} className="rounded border-gray-300 dark:border-neutral-700" />
             <span>Deep Thinking</span>
          </label>
-         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-3 py-1.5 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[10px] md:text-xs shadow-sm">
+         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-2.5 md:px-3 py-1.5 md:py-2 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[11px] md:text-xs shadow-sm">
             <input type="checkbox" checked={useSearch} onChange={(e) => setUseSearch(e.target.checked)} className="rounded border-gray-300 dark:border-neutral-700" />
             <span>Web Search</span>
          </label>
-         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-3 py-1.5 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[10px] md:text-xs shadow-sm">
+         <label className="flex items-center gap-1.5 md:gap-2 cursor-pointer text-gray-600 dark:text-gray-400 bg-white dark:bg-neutral-900 px-2.5 md:px-3 py-1.5 md:py-2 rounded-full border border-gray-200 dark:border-neutral-800 hover:border-black dark:hover:border-white transition-colors text-[11px] md:text-xs shadow-sm">
             <input type="checkbox" checked={useCaseLaw} onChange={(e) => setUseCaseLaw(e.target.checked)} className="rounded border-gray-300 dark:border-neutral-700" />
             <span>Case Laws</span>
          </label>
@@ -828,11 +825,11 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
             </div>
           )}
 
-          <div className="relative flex items-end gap-1.5 md:gap-2 bg-gray-100 dark:bg-black rounded-[28px] border border-transparent focus-within:border-gray-300 dark:focus-within:border-neutral-700 focus-within:bg-white dark:focus-within:bg-[#0f0f0f] transition-all p-1.5">
+          <div className="relative flex items-end gap-1 md:gap-2 bg-gray-100 dark:bg-black rounded-[24px] md:rounded-[28px] border border-transparent focus-within:border-gray-300 dark:focus-within:border-neutral-700 focus-within:bg-white dark:focus-within:bg-[#0f0f0f] transition-all p-1.5 md:p-2">
             {/* File Upload Button */}
             <button
                onClick={() => fileInputRef.current?.click()}
-               className="p-2 md:p-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors shrink-0"
+               className="p-2.5 md:p-3 text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors shrink-0"
                title="Upload Files (Images, Docs, Audio, Video)"
             >
                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -854,7 +851,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask DHARMA"
-              className="w-full bg-transparent text-gray-900 dark:text-white border-none focus:ring-0 resize-none min-h-[44px] md:min-h-[52px] max-h-[150px] text-[16px] placeholder-gray-500 py-3"
+              className="w-full bg-transparent text-gray-900 dark:text-white border-none focus:ring-0 resize-none min-h-[48px] md:min-h-[52px] max-h-[150px] text-[16px] placeholder-gray-500 py-3 md:py-3.5"
               rows={1}
             />
 
@@ -863,7 +860,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
                {!input.trim() && (
                   <button
                      onClick={isRecording ? stopRecording : startRecording}
-                     className={`p-2 rounded-full transition-all shrink-0 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-800'}`}
+                     className={`p-2.5 md:p-3 rounded-full transition-all shrink-0 ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-200 dark:hover:bg-neutral-800'}`}
                      title={isRecording ? "Stop Recording" : "Speech to Text"}
                   >
                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
@@ -876,7 +873,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
                  <button 
                    onClick={handleSendSafe}
                    disabled={loading}
-                   className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                   className="p-2.5 md:p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                  >
                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />

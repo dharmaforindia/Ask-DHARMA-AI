@@ -337,7 +337,7 @@ How can I assist you today?`;
         </div>
         
         {/* Right Side: Controls */}
-        <div className="flex items-center gap-2 md:gap-4 overflow-x-auto no-scrollbar ml-auto pl-2">
+        <div className="flex items-center gap-1.5 md:gap-4 overflow-x-auto no-scrollbar ml-auto pl-2">
            
            {/* Theme Toggle */}
            <button
@@ -361,7 +361,7 @@ How can I assist you today?`;
               <select 
                  value={language} 
                  onChange={(e) => setLanguage(e.target.value as Language)}
-                 className="bg-gray-100 dark:bg-neutral-900 text-gray-900 dark:text-white text-[10px] md:text-xs py-1 px-1 md:px-2 rounded border border-gray-200 dark:border-neutral-700 focus:outline-none cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 w-[55px] md:w-auto transition-colors"
+                 className="bg-gray-100 dark:bg-neutral-900 text-gray-900 dark:text-white text-[11px] md:text-xs py-1 px-1.5 md:px-2 rounded border border-gray-200 dark:border-neutral-700 focus:outline-none cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 w-[65px] md:w-auto transition-colors"
               >
                   {LANGUAGES.map(lang => (
                     <option key={lang} value={lang}>{lang.substring(0,3)}</option>
@@ -373,19 +373,19 @@ How can I assist you today?`;
            <nav className="flex gap-1 bg-gray-100 dark:bg-neutral-900 p-0.5 md:p-1 rounded-lg border border-gray-200 dark:border-neutral-800 shrink-0 transition-colors">
             <button 
               onClick={() => setMode(AppMode.Chat)}
-              className={`px-2 md:px-3 py-1.5 rounded-md text-[10px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Chat ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
+              className={`px-2 md:px-3 py-1.5 rounded-md text-[11px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Chat ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
             >
               Chat
             </button>
             <button 
               onClick={() => setMode(AppMode.Live)}
-              className={`px-2 md:px-3 py-1.5 rounded-md text-[10px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Live ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
+              className={`px-2 md:px-3 py-1.5 rounded-md text-[11px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Live ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
             >
               Voice
             </button>
             <button 
               onClick={() => setMode(AppMode.Analyze)}
-              className={`px-2 md:px-3 py-1.5 rounded-md text-[10px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Analyze ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
+              className={`px-2 md:px-3 py-1.5 rounded-md text-[11px] md:text-xs font-medium transition-all whitespace-nowrap ${mode === AppMode.Analyze ? 'bg-white dark:bg-neutral-800 text-black dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-neutral-700' : 'text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white'}`}
             >
               Scan
             </button>
@@ -435,7 +435,7 @@ How can I assist you today?`;
             ></div>
             
             {/* Drawer */}
-            <div className="relative w-[85%] max-w-sm bg-white dark:bg-neutral-900 h-full border-r border-gray-200 dark:border-neutral-800 shadow-2xl flex flex-col p-4 animate-[slideIn_0.3s_ease-out] transition-colors duration-300">
+            <div className="relative w-[85%] max-w-sm bg-white dark:bg-neutral-900 h-full border-r border-gray-200 dark:border-neutral-800 shadow-2xl flex flex-col p-4 animate-[slideIn_0.3s_ease-out] transition-colors duration-300 z-50">
               <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-200 dark:border-neutral-800">
                 <div className="flex items-center gap-2">
                    <div className="w-6 h-6">

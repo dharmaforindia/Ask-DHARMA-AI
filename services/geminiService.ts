@@ -75,6 +75,7 @@ export const sendLegalQuery = async (
     if (onStreamUpdate) {
       const resultStream = await chat.sendMessageStream({ message: messageContent });
       let fullText = "";
+      const groundingUrls: string[] = [];
       
       for await (const chunk of resultStream) {
         const chunkText = chunk.text;
@@ -82,18 +83,16 @@ export const sendLegalQuery = async (
           fullText += chunkText;
           onStreamUpdate(fullText);
         }
-      }
 
-      // Wait for response to complete to get metadata
-      const response = await resultStream.response;
-      
-      const groundingUrls: string[] = [];
-      // Fix: Safe access to response and candidates
-      const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (chunks) {
-        chunks.forEach((chunk: any) => {
-          if (chunk.web?.uri) groundingUrls.push(chunk.web.uri);
-        });
+        // Extract grounding metadata from chunks
+        const chunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (chunks) {
+          chunks.forEach((c: any) => {
+            if (c.web?.uri && !groundingUrls.includes(c.web.uri)) {
+              groundingUrls.push(c.web.uri);
+            }
+          });
+        }
       }
 
       return { text: fullText, groundingUrls };
@@ -282,7 +281,7 @@ export const connectLiveDharma = async (
   const langInstruction = `\nIMPORTANT: Speak in ${language}. Keep responses legal but concise.`;
 
   const sessionPromise = ai.live.connect({
-    model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
     config: {
       responseModalities: [Modality.AUDIO],
       speechConfig: {

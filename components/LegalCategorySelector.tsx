@@ -52,7 +52,7 @@ const LegalCategorySelector: React.FC<Props> = ({
       <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-2 shrink-0 transition-colors">
         <button
           onClick={() => setActiveTab('jurisdictions')}
-          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+          className={`flex-1 py-3 md:py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
             activeTab === 'jurisdictions' 
               ? 'text-gray-900 dark:text-white border-b-2 border-black dark:border-white' 
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
@@ -62,7 +62,7 @@ const LegalCategorySelector: React.FC<Props> = ({
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+          className={`flex-1 py-3 md:py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
             activeTab === 'history' 
               ? 'text-gray-900 dark:text-white border-b-2 border-black dark:border-white' 
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-500 dark:hover:text-gray-300'
@@ -82,7 +82,7 @@ const LegalCategorySelector: React.FC<Props> = ({
               <button
                 key={cat.id}
                 onClick={() => onSelectCategory(cat)}
-                className={`w-full text-left p-2.5 md:p-3 rounded-lg border transition-all duration-200 group ${
+                className={`w-full text-left p-3.5 md:p-3 rounded-lg border transition-all duration-200 group ${
                   selectedCategoryId === cat.id
                     ? 'bg-black dark:bg-white text-white dark:text-black border-black dark:border-white shadow-md'
                     : 'bg-white dark:bg-neutral-900 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-neutral-800 hover:border-gray-400 dark:hover:border-gray-600 hover:text-gray-900 dark:hover:text-white'
@@ -107,7 +107,7 @@ const LegalCategorySelector: React.FC<Props> = ({
             {/* New Chat Button */}
             <button
               onClick={onCreateSession}
-              className="w-full mb-4 bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-black dark:text-white p-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-gray-300 dark:border-neutral-700 shadow-sm"
+              className="w-full mb-4 bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-black dark:text-white p-3.5 md:p-3 rounded-lg flex items-center justify-center gap-2 transition-colors border border-gray-300 dark:border-neutral-700 shadow-sm"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -124,13 +124,13 @@ const LegalCategorySelector: React.FC<Props> = ({
                 <select
                   value={retentionPeriod}
                   onChange={(e) => onRetentionChange(e.target.value as RetentionPeriod)}
-                  className="w-full bg-white dark:bg-neutral-900 text-gray-800 dark:text-gray-300 text-xs p-2 rounded border border-gray-200 dark:border-neutral-800 focus:border-gray-500 dark:focus:border-neutral-500 focus:outline-none appearance-none cursor-pointer transition-colors"
+                  className="w-full bg-white dark:bg-neutral-900 text-gray-800 dark:text-gray-300 text-xs p-2.5 md:p-2 rounded border border-gray-200 dark:border-neutral-800 focus:border-gray-500 dark:focus:border-neutral-500 focus:outline-none appearance-none cursor-pointer transition-colors"
                 >
                   <option value="7d">Save for 7 Days</option>
                   <option value="30d">Save for 30 Days</option>
                   <option value="none">No Save (Incognito)</option>
                 </select>
-                <div className="absolute right-2 top-2 pointer-events-none text-gray-500">
+                <div className="absolute right-2 top-2.5 md:top-2 pointer-events-none text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
                     <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
                   </svg>
@@ -151,13 +151,13 @@ const LegalCategorySelector: React.FC<Props> = ({
                   <button
                     key={session.id}
                     onClick={() => onSelectSession(session.id)}
-                    className={`w-full group relative text-left p-2.5 md:p-3 rounded-lg border transition-all ${
+                    className={`w-full group relative text-left p-3.5 md:p-3 rounded-lg border transition-all ${
                       currentSessionId === session.id
                         ? 'bg-gray-200 dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 text-black dark:text-white shadow-sm'
                         : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-neutral-900 hover:border-gray-200 dark:hover:border-neutral-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                     }`}
                   >
-                    <div className="pr-6">
+                    <div className="pr-8">
                       <p className="font-medium text-sm truncate">{session.title || 'New Conversation'}</p>
                       <p className="text-[10px] text-gray-500 dark:text-gray-600 mt-1 flex justify-between">
                          <span>{formatDate(session.timestamp)}</span>
@@ -165,13 +165,13 @@ const LegalCategorySelector: React.FC<Props> = ({
                       </p>
                     </div>
                     
-                    {/* Delete Action */}
+                    {/* Delete Action (Always visible on mobile to avoid hover issues, or prominent enough) */}
                     <div 
                       onClick={(e) => onDeleteSession(session.id, e)}
-                      className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-neutral-950 rounded transition-all"
+                      className="absolute right-2 top-3.5 p-1 text-gray-400 hover:text-red-500 hover:bg-gray-100 dark:hover:bg-neutral-950 rounded transition-all md:opacity-0 md:group-hover:opacity-100 opacity-100"
                       title="Delete Chat"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 md:w-4 md:h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                       </svg>
                     </div>
@@ -188,7 +188,7 @@ const LegalCategorySelector: React.FC<Props> = ({
                       onClearHistory();
                    }
                 }}
-                className="mt-4 text-xs text-red-600 dark:text-red-900 hover:text-red-800 dark:hover:text-red-500 text-center py-2 w-full transition-colors font-semibold"
+                className="mt-4 text-xs text-red-600 dark:text-red-900 hover:text-red-800 dark:hover:text-red-500 text-center py-3 md:py-2 w-full transition-colors font-semibold"
               >
                 Clear All History
               </button>
