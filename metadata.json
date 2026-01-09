@@ -1,0 +1,8 @@
+{
+  "name": "Ask DHARMA",
+  "description": "An advanced legal AI assistant specialized in Indian Law, covering Constitutional, Criminal, Civil, and Corporate domains.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
