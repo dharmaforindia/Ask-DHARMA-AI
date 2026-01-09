@@ -9,7 +9,8 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // Shim process.env.API_KEY for the GenAI SDK
-      'process.env.API_KEY': JSON.stringify(env.API_KEY),
+      // Provide fallback to empty string to prevent runtime crash if var is missing
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || ""),
     },
     server: {
       port: 3000
