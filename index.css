@@ -1,4 +1,6 @@
-/* @tailwind directives removed to support CDN usage without build step */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Custom Scrollbar Utilities */
 .no-scrollbar::-webkit-scrollbar {
