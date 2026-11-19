@@ -11,6 +11,13 @@ It is a React 18 + TypeScript + Vite + Tailwind app.
 - Commands: `npm install`, `npm run dev`, `npm run build` (runs `tsc` and then `vite build`).
 - `GEMINI_API_KEY` goes in `.env.local`. Never commit it.
 
+## Legal work: senior-advocate skill
+
+For Indian legal work (case strategy, drafting petitions, hearing preparation, Supreme Court of
+India or Karnataka High Court practice), load `.claude/skills/senior-advocate/SKILL.md`. Its core
+rule: never invent a citation. Verify every authority with the Legal Data Hunter tools, or mark it
+[VERIFY].
+
 ## How to work: Fable mode (always on)
 
 Every model that works in this repo (Opus, Sonnet or Haiku) follows the Fable-mode method. The full
