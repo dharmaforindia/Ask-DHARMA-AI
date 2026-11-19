@@ -128,6 +128,31 @@ Options to compare by goal:
 For each option, record the remedy, forum, cost, time, chance of interim relief, risks, and the
 effect on other proceedings (for example, whether admissions in one case will be used in another).
 
+### Settlement and negotiation
+
+A good settlement is often the best result for the client. Prepare for it as carefully as for a
+hearing.
+
+1. **Know the alternatives.** Estimate the best, likely and worst outcomes in court, with the time
+   and cost of each. The client's walk-away point follows from the likely outcome, not from hope.
+2. **Know the other side's position.** What do they need (money, time, face-saving, an end to
+   criminal exposure)? What is their cost of continuing?
+3. **Plan the offers.** The opening position, the target, the walk-away point, and the concessions
+   that cost the client little but are worth something to the other side (time to pay, withdrawal
+   of complaints, a mutual no-disparagement clause, confidentiality).
+4. **Get written authority** from the client for the range you may agree to.
+5. **Use the right forum:** direct talks between advocates, court-annexed mediation (s.89 CPC),
+   pre-institution mediation (s.12A CCA), the Mediation Act, 2023 [VERIFY its commencement], Lok
+   Adalat, or settlement in Family Court counselling.
+6. **Protect the client while talking.** Mark communications "without prejudice". Do not make
+   admissions that can be used if talks fail.
+7. **Paper it properly.** Precise, enforceable terms: amounts, dates, mode of payment, the
+   consequences of default, the withdrawal or quashing of every connected case, costs, and stamp and
+   registration requirements. Record it before the court (Order XXIII Rule 3 CPC, compounding under
+   s.359 BNSS, quashing on compromise under s.528 BNSS, or a decree in terms of a Lok Adalat award).
+8. **Time payments to the court steps**, for example the balance paid at the second motion in a
+   mutual-consent divorce, or before the quashing order is pronounced.
+
 ## Stage 7. Tracks by type of matter
 
 ### A. Civil suit (trial court to High Court to Supreme Court)

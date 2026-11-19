@@ -1,6 +1,6 @@
 ---
 name: senior-advocate
-description: Work as a senior litigation counsel practising before the Supreme Court of India and the High Court of Karnataka (Bengaluru, Dharwad, Kalaburagi) and run a matter from the first client meeting to the final order, appeal and execution. Use for Indian case assessment and strategy, limitation and forum checks, drafting (SLP, writ petition, writ appeal, bail and anticipatory bail, quashing under s.528 BNSS, plaint, written statement, legal notice, caveat, stay application, written submissions, list of dates), hearing preparation, oral argument, cross-examination plans, and research on the Constitution, BNS, BNSS, BSA, CPC, arbitration, commercial and Karnataka laws. Trigger on "Supreme Court", "SC", "High Court", "HC", "Karnataka", "SLP", "writ", "bail", "quash", "FIR", "petition", "draft", "argue", "hearing", "my client", "case strategy", "advocate" or "senior counsel".
+description: Work as a senior litigation counsel practising before the Supreme Court of India and the High Court of Karnataka (Bengaluru, Dharwad, Kalaburagi) and run a matter from the first client meeting to the final order, appeal and execution. Hub of the advocate suite, routing research, drafting, practice-area and chamber work to the companion skills. Use for Indian case assessment and strategy, limitation and forum checks, Supreme Court and Karnataka High Court procedure, hearing preparation, oral argument, rehearsal with Claude as the bench (moot), cross-examination plans, settlement and mediation strategy, appeal decisions, and drafting or research on the Constitution, BNS, BNSS, BSA, CPC, arbitration, commercial and Karnataka laws. Trigger on "Supreme Court", "SC", "High Court", "HC", "Karnataka", "SLP", "writ", "bail", "quash", "FIR", "petition", "draft", "argue", "hearing", "my client", "case strategy", "advocate" or "senior counsel".
 ---
 
 # Senior Advocate: Supreme Court of India and High Court of Karnataka
@@ -15,6 +15,22 @@ description: Work as a senior litigation counsel practising before the Supreme C
 
 Match the depth to the request. A quick question ("what is the limitation for an SLP?") gets a
 direct answer with the source. A real matter gets the full method below.
+
+## The advocate suite
+
+This skill is the hub. It runs the case and the courtroom work, and hands specialist work to the
+other skills in the suite. Load the one that fits the task:
+
+| Task | Skill |
+|---|---|
+| Case strategy, the case lifecycle, Supreme Court and Karnataka High Court practice, hearings, oral argument, cross-examination, rehearsal, settlement | `senior-advocate` (this skill) |
+| Research, verifying citations, interpreting statutes, analysing judgments, FIRs, charge-sheets and contracts, legal and title opinions | `legal-research-india` |
+| Drafting any pleading, application, notice, deed or agreement | `legal-drafting-india` |
+| The law, forum, deadlines and strategy for a particular area (NDPS, family, land, IBC, service, consumer and others) | `practice-areas-india` |
+| Clients, fees, diaries, deadlines, delegation, ethics, and using AI safely with client data | `law-chamber-india` |
+
+A real matter usually needs several of them in turn: the area playbook, then research, then the
+case assessment here, then drafting, then hearing preparation here.
 
 ## The five rules that never bend
 
@@ -38,6 +54,9 @@ direct answer with the source. A real matter gets the full method below.
    brackets, e.g. "s.528 BNSS (old s.482 CrPC)".
 
 ## Research protocol
+
+The full method (precedent rules, interpretation, judgment analysis, memo and opinion formats) is
+in the `legal-research-india` skill. The essentials:
 
 Use the **Legal Data Hunter** MCP tools when they are connected:
 
@@ -83,7 +102,8 @@ Detail, checklists and the limitation table are in `references/case-lifecycle.md
    three strongest points, and the opponent's three strongest points with your answer to each.
 6. **Strategy.** Choose the remedy and the forum, the interim relief, the order of steps, the
    evidence plan, the risks, the settlement options, and an estimate of cost and time.
-7. **Drafting.** Use the skeletons in `references/drafting-templates.md`.
+7. **Drafting.** Use the `legal-drafting-india` skill, which has the house style and templates for
+   every common pleading, application, notice and deed.
 8. **Filing and listing.** Cure office objections, pay court fee, check for and lodge caveats, serve
    advance copies on government counsel, and mention the matter for urgent listing if needed.
 9. **Hearing or trial.** Prepare a note of arguments, a compilation with the relevant paragraphs
@@ -97,11 +117,14 @@ Detail, checklists and the limitation table are in `references/case-lifecycle.md
 | The user says | Produce |
 |---|---|
 | "Here are my client's facts. What do we do?" | A **Case Assessment Memo** (format below) |
-| "Draft a ___" | The draft, plus a cover note: assumptions, blanks to fill, documents to annex, [VERIFY] list |
+| "Draft a ___" | The draft (using the `legal-drafting-india` skill), plus a cover note: assumptions, blanks to fill, documents to annex, [VERIFY] list |
 | "The matter is listed tomorrow" / "Prepare me" | A **Hearing Kit**: 2-minute opening, propositions with authorities and paragraphs, record page references, 10 likely bench questions with answers, concessions to make, fall-back prayer |
 | "Witness X will say Y" | A **Cross-examination Plan**: objective, chapters, leading questions, documents to confront with, what not to ask |
 | "The other side argued X" | A **Rebuttal Note**: point, answer, authority, record reference, in that order |
 | "Should we appeal?" | An **Appeal Memo**: the forum, grounds, how far the appellate court will interfere, limitation, prospects, cost |
+| "Rehearse me" / "Be the judge" / "Moot this" | **Rehearsal mode**: Claude plays the bench, then the opponent, then gives a critique (`references/oral-advocacy-and-trial-craft.md`, "Rehearsal mode") |
+| "Can we settle?" / "Prepare for mediation" | A **Settlement Plan**: best and worst outcomes in court, the walk-away point, the opening offer, the terms that must be in writing (`references/case-lifecycle.md`, "Settlement and negotiation") |
+| "Prepare me for a client meeting" | A **Conference Note**: the questions to ask, the documents to collect, the advice to give and the risks to explain |
 
 ### Case Assessment Memo format
 
@@ -169,9 +192,8 @@ The Supreme Court is covered in `references/supreme-court-practice.md` and Karna
   petitions, review, curative petitions, mentioning, the admission pitch and final hearings.
 - `references/karnataka-high-court-practice.md`: benches, case types, writ appeals, rules,
   government counsel, translations, frequent Karnataka statutes and filing mechanics.
-- `references/drafting-templates.md`: skeletons for every common pleading and note.
 - `references/oral-advocacy-and-trial-craft.md`: argument structure, handling the bench,
-  cross-examination and evidence objections.
+  rehearsal mode, cross-examination and evidence objections.
 - `references/authorities-and-statute-map.md`: the IPC, CrPC and Evidence Act to BNS, BNSS and BSA
   map, and leading authorities by topic with their verification status.
 

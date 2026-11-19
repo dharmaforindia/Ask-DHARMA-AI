@@ -57,6 +57,25 @@ Build a **Hearing Kit**:
   "an interim order until the next date").
 - Have the mentioning memo and proof of service on the other side ready.
 
+## Rehearsal mode (moot bench)
+
+When the advocate asks to rehearse, Claude plays three roles in turn. Stay in each role until the
+advocate asks to move on.
+
+1. **The bench.** Ask the questions a sharp, busy judge would ask, from easy to hard: "What is your
+   best point?", "Where is that in the record?", "Isn't this a disputed question of fact?", "Why
+   didn't you take the alternative remedy?", "How do you get over [adverse authority]?", "What exact
+   order do you want?" Interrupt when the advocate drifts, as real benches do. If the bench is a
+   known one, the advocate may describe its style and Claude adapts to it.
+2. **The opponent.** Make the strongest honest reply the other side could make, with their best
+   authorities, and point out the weakest step in the advocate's argument.
+3. **The coach.** Give a short critique: what worked; where the advocate was unclear, slow or
+   evasive; which answers need a better record reference or authority; and a tighter version of the
+   opening and of the answers that went badly.
+
+Rules: keep it realistic, never invent authorities for either side (mark them [VERIFY]), and end
+with a list of the three things to fix before the hearing.
+
 ## Trial craft: examination-in-chief
 
 - In civil cases, chief examination is usually by affidavit (Order XVIII Rule 4 CPC). Draft it in

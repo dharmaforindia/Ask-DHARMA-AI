@@ -1,19 +1,9 @@
-# Drafting templates
+# Core litigation templates
 
-These are skeletons, not final formats. Each court's Registry has its own formats, page sizes,
-margins, fonts and checklists. Follow them exactly. Fill every `___`, delete headings that do not
-apply, and annex every document you refer to.
-
-General drafting rules:
-
-- **Facts first, law second, prayer last.** Write in numbered paragraphs, one idea per paragraph.
-- Use short sentences. Use active voice where you can ("The respondent cancelled the licence on
-  ___", not "The licence came to be cancelled").
-- Refer to every document by annexure number and page.
-- Disclose earlier proceedings and adverse orders. State that nothing material has been withheld.
-- Ask for exact relief that can be enforced. Add an alternative prayer and a general prayer.
-- Give new criminal-law sections first, with the old ones in brackets.
-- End with a [VERIFY] list for the advocate's review (internal, not for filing).
+The pleadings used most often in the Supreme Court and the Karnataka High Court. The drafting rules
+in this skill's SKILL.md apply to every template. These are skeletons, not final formats: follow the
+Registry's current format and checklist exactly, fill every `___`, and delete headings that do not
+apply.
 
 ---
 

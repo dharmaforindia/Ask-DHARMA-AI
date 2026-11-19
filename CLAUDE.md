@@ -11,12 +11,22 @@ It is a React 18 + TypeScript + Vite + Tailwind app.
 - Commands: `npm install`, `npm run dev`, `npm run build` (runs `tsc` and then `vite build`).
 - `GEMINI_API_KEY` goes in `.env.local`. Never commit it.
 
-## Legal work: senior-advocate skill
+## Legal work: the advocate suite
 
-For Indian legal work (case strategy, drafting petitions, hearing preparation, Supreme Court of
-India or Karnataka High Court practice), load `.claude/skills/senior-advocate/SKILL.md`. Its core
-rule: never invent a citation. Verify every authority with the Legal Data Hunter tools, or mark it
-[VERIFY].
+Five skills in `.claude/skills/` cover an Indian advocate's work. `senior-advocate` is the hub and
+routes to the others:
+
+- `senior-advocate`: case strategy, Supreme Court and Karnataka High Court practice, hearings,
+  rehearsal, settlement.
+- `legal-research-india`: research, citations, interpretation, analysis, opinions.
+- `legal-drafting-india`: all pleadings, applications, notices and deeds.
+- `practice-areas-india`: area playbooks (criminal special statutes, family, land, commercial and
+  others).
+- `law-chamber-india`: clients, fees, diaries, ethics, safe use of AI with client data.
+
+The core rule across all five: never invent a citation. Verify every authority with the Legal Data
+Hunter tools, or mark it [VERIFY]. The suite is also published as a Claude Code plugin from this
+repo (`.claude-plugin/marketplace.json`). See `ADVOCATE-SUITE.md` for install steps.
 
 ## How to work: Fable mode (always on)
 
