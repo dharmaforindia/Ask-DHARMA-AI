@@ -1,4 +1,4 @@
-import { GoogleGenAI, LiveServerMessage, Modality } from "@google/genai";
+import { GoogleGenAI, LiveServerMessage, Modality, Session } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from "../constants";
 import { Attachment } from "../types";
 
@@ -14,7 +14,7 @@ interface ChatResponse {
 // --- Text Chat Service ---
 export const sendLegalQuery = async (
   query: string,
-  history: { role: string; parts: { text: string; inlineData?: any }[] }[],
+  history: { role: string; parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] }[],
   language: string,
   useReasoning: boolean = false,
   useSearch: boolean = false,
@@ -201,10 +201,9 @@ export const generateSpeech = async (text: string): Promise<AudioBuffer | null> 
     const base64Audio = response?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
     if (!base64Audio) return null;
 
-    // Decode PCM (24kHz is standard for this model)
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({sampleRate: 24000});
-    const audioBuffer = pcmToAudioBuffer(base64Audio, audioContext, 24000);
-    return audioBuffer;
+    // Decode PCM (24kHz is standard for this model). No AudioContext is needed to build the
+    // buffer; creating one here on every call left audio contexts open.
+    return pcmToAudioBuffer(base64Audio, null, 24000);
 
   } catch (error) {
     console.error("TTS Error", error);
@@ -251,12 +250,15 @@ export function createPcmBlob(data: Float32Array): { data: string, mimeType: str
 }
 
 // Base64 (Model Output) -> Int16 -> Float32 -> AudioBuffer
-export function pcmToAudioBuffer(base64: string, ctx: AudioContext, sampleRate: number = 24000): AudioBuffer {
+export function pcmToAudioBuffer(base64: string, ctx: BaseAudioContext | null, sampleRate: number = 24000): AudioBuffer {
   const bytes = decode(base64);
-  const dataInt16 = new Int16Array(bytes.buffer);
-  
+  // 16-bit samples: ignore a trailing odd byte instead of throwing.
+  const dataInt16 = new Int16Array(bytes.buffer, 0, Math.floor(bytes.byteLength / 2));
+
   // Create buffer matching the model's output rate (usually 24kHz)
-  const buffer = ctx.createBuffer(1, dataInt16.length, sampleRate);
+  const buffer = ctx
+    ? ctx.createBuffer(1, dataInt16.length, sampleRate)
+    : new AudioBuffer({ numberOfChannels: 1, length: dataInt16.length, sampleRate });
   const channelData = buffer.getChannelData(0);
   
   for (let i = 0; i < dataInt16.length; i++) {
@@ -279,6 +281,10 @@ export const connectLiveDharma = async (
 ) => {
   
   const langInstruction = `\nIMPORTANT: Speak in ${language}. Keep responses legal but concise.`;
+
+  // ai.live.connect resolves when the socket opens and never rejects on its own,
+  // so a connection that never opens would wait forever without this timeout.
+  const LIVE_CONNECT_TIMEOUT_MS = 15000;
 
   const sessionPromise = ai.live.connect({
     model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -315,15 +321,44 @@ export const connectLiveDharma = async (
     }
   });
 
+  // Wait until the connection is really open, so the UI only says "Listening..." when it is.
+  let timedOut = false;
+  const session = await new Promise<Session>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      timedOut = true;
+      reject(new Error("Timed out connecting to DHARMA Live"));
+    }, LIVE_CONNECT_TIMEOUT_MS);
+
+    sessionPromise.then(
+      (s) => {
+        clearTimeout(timer);
+        if (timedOut) {
+          s.close(); // Opened too late: the caller has already given up.
+        } else {
+          resolve(s);
+        }
+      },
+      (err) => {
+        clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+
   return {
     sendAudioChunk: (data: Float32Array) => {
-      const blob = createPcmBlob(data);
-      sessionPromise.then(session => {
-        session.sendRealtimeInput({ media: blob });
-      });
+      try {
+        session.sendRealtimeInput({ media: createPcmBlob(data) });
+      } catch (err) {
+        console.error("DHARMA Live send error", err);
+      }
     },
     disconnect: () => {
-      sessionPromise.then(session => session.close());
+      try {
+        session.close();
+      } catch (err) {
+        console.error("DHARMA Live close error", err);
+      }
     }
   };
 };

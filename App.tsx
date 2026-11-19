@@ -186,7 +186,24 @@ How can I assist you today?`;
       return ageDays <= limit;
     });
 
-    localStorage.setItem('dharma_sessions', JSON.stringify(validSessions));
+    // Never save file contents. Uploaded files can be many megabytes (localStorage holds
+    // about 5 MB in total), and they are often private legal documents. Only the file name
+    // and type are kept, so the chat history can still show that a file was attached.
+    const sessionsToSave = validSessions.map(s => ({
+      ...s,
+      messages: s.messages.map(m =>
+        m.attachments && m.attachments.length > 0
+          ? { ...m, attachments: m.attachments.map(a => ({ mimeType: a.mimeType, name: a.name, data: '' })) }
+          : m
+      )
+    }));
+
+    try {
+      localStorage.setItem('dharma_sessions', JSON.stringify(sessionsToSave));
+    } catch (e) {
+      // Storage full or blocked (for example in private browsing). Chats stay in memory.
+      console.error("Could not save chat history", e);
+    }
   }, [sessions, retentionPeriod]);
 
 
