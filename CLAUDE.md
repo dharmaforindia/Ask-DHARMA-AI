@@ -18,6 +18,23 @@ It is a React 18 + TypeScript + Vite + Tailwind app.
 - `GEMINI_API_KEY` goes in `.env.local` for local work and in Vercel's environment variables for
   deploys (`API_KEY` also works). Never commit it, and never send it to the browser.
 
+## Legal work: the advocate suite
+
+Five skills in `.claude/skills/` cover an Indian advocate's work. `senior-advocate` is the hub and
+routes to the others:
+
+- `senior-advocate`: case strategy, Supreme Court and Karnataka High Court practice, hearings,
+  rehearsal, settlement.
+- `legal-research-india`: research, citations, interpretation, analysis, opinions.
+- `legal-drafting-india`: all pleadings, applications, notices and deeds.
+- `practice-areas-india`: area playbooks (criminal special statutes, family, land, commercial and
+  others).
+- `law-chamber-india`: clients, fees, diaries, ethics, safe use of AI with client data.
+
+The core rule across all five: never invent a citation. Verify every authority with the Legal Data
+Hunter tools, or mark it [VERIFY]. The suite is also published as a Claude Code plugin from this
+repo (`.claude-plugin/marketplace.json`). See `ADVOCATE-SUITE.md` for install steps.
+
 ## How to work: Fable mode (always on)
 
 Every model that works in this repo (Opus, Sonnet or Haiku) follows the Fable-mode method. The full

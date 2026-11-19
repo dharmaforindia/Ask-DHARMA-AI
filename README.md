@@ -41,3 +41,13 @@ Anyone who uses the site can still send requests through `/api/gemini`, so set a
 a budget alert on the key in the Google Cloud console. If the key was ever built into an earlier
 version of the site, create a new key and delete the old one: copies of the old JavaScript may
 still contain it.
+
+## Advocate suite (Claude skills)
+
+This repository also holds five Claude skills for Indian advocates (Supreme Court of India and
+Karnataka High Court practice: research, drafting, strategy, hearings, practice areas and chamber
+management). Install them in Claude Code on any computer with:
+
+`/plugin install indian-advocate-suite --marketplace dharmaforindia/Ask-DHARMA-AI`
+
+See [ADVOCATE-SUITE.md](ADVOCATE-SUITE.md) for the Claude app and other install options.

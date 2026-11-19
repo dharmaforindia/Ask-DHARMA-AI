@@ -1,0 +1,23 @@
+{
+  "name": "ask-dharma",
+  "owner": {
+    "name": "Ask DHARMA"
+  },
+  "description": "Claude skills for Indian advocates practising before the Supreme Court of India and the High Court of Karnataka.",
+  "plugins": [
+    {
+      "name": "indian-advocate-suite",
+      "source": "./",
+      "description": "Five skills for an Indian advocate: senior-advocate (case strategy, SC and Karnataka HC practice, hearings, rehearsal, settlement), legal-research-india, legal-drafting-india, practice-areas-india and law-chamber-india.",
+      "version": "1.0.0",
+      "strict": false,
+      "skills": [
+        "./.claude/skills/senior-advocate",
+        "./.claude/skills/legal-research-india",
+        "./.claude/skills/legal-drafting-india",
+        "./.claude/skills/practice-areas-india",
+        "./.claude/skills/law-chamber-india"
+      ]
+    }
+  ]
+}
