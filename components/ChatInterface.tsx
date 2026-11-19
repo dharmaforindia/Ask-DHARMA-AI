@@ -135,21 +135,35 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   const [isRecording, setIsRecording] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const micStreamRef = useRef<MediaStream | null>(null);
+
+  // The session shown on screen right now. A reply that finishes after the user has switched
+  // to another chat must not overwrite what is on screen.
+  const activeSessionIdRef = useRef(session.id);
 
   // TTS State
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const speakRequestRef = useRef<string | null>(null); // message id whose speech is loading or playing
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sync with prop changes (e.g. switching sessions)
+  // Switching to another session: reset everything that belongs to the old one.
+  // This must not run on every message change, or it would hide the loading indicator
+  // right after each send and clear files the user is about to send.
   useEffect(() => {
-    setMessages(session.messages);
+    activeSessionIdRef.current = session.id;
     setLoading(false);
     stopSpeaking(); // Stop speech if switching sessions
     setAttachments([]); // Clear attachments
+  }, [session.id]);
+
+  // Show the session's messages when they change from outside (e.g. switching sessions,
+  // or picking a jurisdiction in an empty chat).
+  useEffect(() => {
+    setMessages(session.messages);
   }, [session.id, session.messages]);
 
   const scrollToBottom = () => {
@@ -172,11 +186,27 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   useEffect(() => {
     return () => {
       stopSpeaking();
+
+      // If the user leaves the chat while dictating, turn the microphone off.
+      // Detach onstop first so no transcription request is sent for an abandoned recording.
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        recorder.onstop = null;
+        try { recorder.stop(); } catch (e) {}
+      }
+      micStreamRef.current?.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
     };
   }, []);
 
+  const isSessionOnScreen = (sessionId: string) => activeSessionIdRef.current === sessionId;
+
   const updateParent = (newMessages: Message[]) => {
-    setMessages(newMessages);
+    // Always save to the session this reply belongs to, but only redraw the screen
+    // if the user is still looking at that session.
+    if (isSessionOnScreen(session.id)) {
+      setMessages(newMessages);
+    }
     // Determine title if it's the first real message
     let title = session.title;
     const firstUserMsg = newMessages.find(m => m.sender === Sender.User);
@@ -191,7 +221,49 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     });
   };
 
+  // Shows a streaming reply as it arrives, but only while its session is on screen.
+  // Created during the render that started the request, so `session` is the reply's own session.
+  const makeStreamHandler = (botMsgId: string) => (partialText: string) => {
+    if (!isSessionOnScreen(session.id)) return;
+    setLoading(false);
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === botMsgId);
+      if (idx === -1) {
+        return [
+          ...prev,
+          {
+            id: botMsgId,
+            text: partialText,
+            sender: Sender.Bot,
+            timestamp: Date.now(),
+            isThinking: useThinking
+          }
+        ];
+      }
+      const newArr = [...prev];
+      newArr[idx] = { ...newArr[idx], text: partialText };
+      return newArr;
+    });
+  };
+
+  // Converts saved messages into the history format Gemini expects. Earlier files are included
+  // so follow-up questions can still refer to them. The welcome message is not sent.
+  const toApiHistory = (msgs: Message[]) =>
+    msgs
+      .filter(m => m.id !== 'welcome')
+      .map(m => ({
+        role: m.sender === Sender.User ? 'user' : 'model',
+        parts: [
+          ...(m.attachments || [])
+            .filter(att => att.data) // files from reloaded history are not saved
+            .map(att => ({ inlineData: { mimeType: att.mimeType, data: att.data } })),
+          ...(m.text.trim() ? [{ text: m.text }] : [])
+        ]
+      }))
+      .filter(entry => entry.parts.length > 0);
+
   const handleSendSafe = async () => {
+    if (loading) return; // One request at a time (also covers the Enter key)
     if (!input.trim() && attachments.length === 0) return;
 
     const userMsg: Message = {
@@ -213,15 +285,9 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     setLoading(true);
 
     try {
-      // Prepare history
-      const history = initialMessages
-        .filter(m => m.id !== 'welcome')
-        .map(m => {
-          return {
-            role: m.sender === Sender.User ? 'user' : 'model',
-            parts: [{ text: m.text }]
-          };
-        });
+      // Prepare history. Use the messages before this one: the new question is sent
+      // separately below (with its category context), so including it here sent it twice.
+      const history = toApiHistory(messages);
 
       let finalQuery = input;
       if (session.category) {
@@ -235,7 +301,6 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
 
       // Prepare placeholder for streaming response
       const botMsgId = (Date.now() + 1).toString();
-      let isFirstChunk = true;
 
       const response = await sendLegalQuery(
         finalQuery, 
@@ -245,34 +310,12 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
         useSearch, 
         useCaseLaw, 
         currentAttachments,
-        (partialText) => {
-          if (isFirstChunk) {
-            setLoading(false);
-            isFirstChunk = false;
-            // Add bot message on first chunk
-            setMessages(prev => [
-              ...prev,
-              {
-                id: botMsgId,
-                text: partialText,
-                sender: Sender.Bot,
-                timestamp: Date.now(),
-                isThinking: useThinking
-              }
-            ]);
-          } else {
-            // Update existing bot message
-            setMessages(prev => {
-              const newArr = [...prev];
-              const idx = newArr.findIndex(m => m.id === botMsgId);
-              if (idx !== -1) {
-                newArr[idx] = { ...newArr[idx], text: partialText };
-              }
-              return newArr;
-            });
-          }
-        }
+        makeStreamHandler(botMsgId)
       );
+
+      // The stream handler hides the loading indicator on the first chunk; an error reply
+      // arrives without any chunks, so hide it here too.
+      if (isSessionOnScreen(session.id)) setLoading(false);
 
       // Final update with grounding data
       const finalBotMsg: Message = {
@@ -297,6 +340,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     const userMsg = messages[userMsgIndex];
 
     if (!userMsg || userMsg.sender !== Sender.User) return;
+    if (loading) return; // One request at a time
 
     // Reset to state before the bot message
     const historyForRetry = messages.slice(0, index); 
@@ -304,24 +348,19 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     setLoading(true);
     
     try {
-      const apiHistory = messages.slice(0, userMsgIndex)
-        .filter(m => m.id !== 'welcome')
-        .map(m => ({
-          role: m.sender === Sender.User ? 'user' : 'model',
-          parts: [{ text: m.text }]
-        }));
+      const apiHistory = toApiHistory(messages.slice(0, userMsgIndex));
 
       let finalQuery = userMsg.text;
       if (session.category) {
         finalQuery = `[Context: ${session.category.name} - ${session.category.description}] ${userMsg.text}`;
       }
       
-      // Retry with original attachments if any
-      const retryAttachments = userMsg.attachments || [];
+      // Retry with original attachments if any. Files from a reloaded chat history are not
+      // saved (only their names are), so those are left out.
+      const retryAttachments = (userMsg.attachments || []).filter(att => att.data);
 
       // Prepare placeholder for streaming response
       const botMsgId = (Date.now() + 1).toString();
-      let isFirstChunk = true;
 
       const response = await sendLegalQuery(
         finalQuery, 
@@ -331,32 +370,10 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
         useSearch, 
         useCaseLaw, 
         retryAttachments,
-        (partialText) => {
-          if (isFirstChunk) {
-            setLoading(false);
-            isFirstChunk = false;
-            setMessages(prev => [
-              ...prev,
-              {
-                id: botMsgId,
-                text: partialText,
-                sender: Sender.Bot,
-                timestamp: Date.now(),
-                isThinking: useThinking
-              }
-            ]);
-          } else {
-            setMessages(prev => {
-              const newArr = [...prev];
-              const idx = newArr.findIndex(m => m.id === botMsgId);
-              if (idx !== -1) {
-                newArr[idx] = { ...newArr[idx], text: partialText };
-              }
-              return newArr;
-            });
-          }
-        }
+        makeStreamHandler(botMsgId)
       );
+
+      if (isSessionOnScreen(session.id)) setLoading(false);
 
       const finalBotMsg: Message = {
         id: botMsgId,
@@ -407,6 +424,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
@@ -418,7 +436,10 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Use webm for browser compat
+        // Use the format the browser actually recorded in: Chrome records webm, but Safari
+        // (iPhone) records mp4. Drop the codec part, e.g. "audio/webm;codecs=opus".
+        const recordedType = (mediaRecorder.mimeType || 'audio/webm').split(';')[0];
+        const audioBlob = new Blob(audioChunksRef.current, { type: recordedType });
         
         // Convert Blob to Base64
         const reader = new FileReader();
@@ -428,7 +449,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
           const base64Data = base64String.split(',')[1]; // Remove header
           
           setLoading(true);
-          const transcription = await transcribeAudio(base64Data, 'audio/webm');
+          const transcription = await transcribeAudio(base64Data, recordedType);
           setLoading(false);
           
           if (transcription) {
@@ -438,6 +459,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
         
         // Stop tracks
         stream.getTracks().forEach(track => track.stop());
+        micStreamRef.current = null;
       };
 
       mediaRecorder.start();
@@ -464,27 +486,38 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
 
     stopSpeaking(); // Stop any current speech
     setSpeakingId(id);
+    // Checked after the speech request returns. The `speakingId` state cannot be used for
+    // this: inside this function it still holds the value from before setSpeakingId(id).
+    speakRequestRef.current = id;
 
     // Clean markdown before speaking
     const cleanText = text.replace(/[*#]/g, '');
 
     const audioBuffer = await generateSpeech(cleanText);
-    
-    if (audioBuffer && speakingId === id) { 
+
+    // The user pressed stop, or asked for another message, while this one was loading.
+    if (speakRequestRef.current !== id) return;
+
+    if (audioBuffer) {
        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
        audioContextRef.current = ctx;
        const source = ctx.createBufferSource();
        source.buffer = audioBuffer;
        source.connect(ctx.destination);
-       source.onended = () => setSpeakingId(null);
+       source.onended = () => {
+         // Ignore the "ended" event of a clip that was stopped to play another message.
+         if (sourceNodeRef.current === source) setSpeakingId(null);
+       };
        source.start();
        sourceNodeRef.current = source;
     } else {
+       speakRequestRef.current = null;
        setSpeakingId(null);
     }
   };
 
   const stopSpeaking = () => {
+    speakRequestRef.current = null;
     if (sourceNodeRef.current) {
       try { sourceNodeRef.current.stop(); } catch(e) {}
     }
@@ -613,7 +646,8 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   };
 
   const renderAttachmentPreview = (att: Attachment) => {
-    if (att.mimeType.startsWith('image/')) {
+    // Files in saved chat history keep only their name and type, so show an icon for them.
+    if (att.mimeType.startsWith('image/') && att.data) {
       return <img src={`data:${att.mimeType};base64,${att.data}`} alt="preview" className="w-full h-full object-cover" />;
     }
     if (att.mimeType === 'application/pdf') {
