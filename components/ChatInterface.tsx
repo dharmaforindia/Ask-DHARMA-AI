@@ -145,17 +145,25 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
+  const speakRequestRef = useRef<string | null>(null); // message id whose speech is loading or playing
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Sync with prop changes (e.g. switching sessions)
+  // Switching to another session: reset everything that belongs to the old one.
+  // This must not run on every message change, or it would hide the loading indicator
+  // right after each send and clear files the user is about to send.
   useEffect(() => {
     activeSessionIdRef.current = session.id;
-    setMessages(session.messages);
     setLoading(false);
     stopSpeaking(); // Stop speech if switching sessions
     setAttachments([]); // Clear attachments
+  }, [session.id]);
+
+  // Show the session's messages when they change from outside (e.g. switching sessions,
+  // or picking a jurisdiction in an empty chat).
+  useEffect(() => {
+    setMessages(session.messages);
   }, [session.id, session.messages]);
 
   const scrollToBottom = () => {
@@ -238,7 +246,24 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     });
   };
 
+  // Converts saved messages into the history format Gemini expects. Earlier files are included
+  // so follow-up questions can still refer to them. The welcome message is not sent.
+  const toApiHistory = (msgs: Message[]) =>
+    msgs
+      .filter(m => m.id !== 'welcome')
+      .map(m => ({
+        role: m.sender === Sender.User ? 'user' : 'model',
+        parts: [
+          ...(m.attachments || [])
+            .filter(att => att.data) // files from reloaded history are not saved
+            .map(att => ({ inlineData: { mimeType: att.mimeType, data: att.data } })),
+          ...(m.text.trim() ? [{ text: m.text }] : [])
+        ]
+      }))
+      .filter(entry => entry.parts.length > 0);
+
   const handleSendSafe = async () => {
+    if (loading) return; // One request at a time (also covers the Enter key)
     if (!input.trim() && attachments.length === 0) return;
 
     const userMsg: Message = {
@@ -260,15 +285,9 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     setLoading(true);
 
     try {
-      // Prepare history
-      const history = initialMessages
-        .filter(m => m.id !== 'welcome')
-        .map(m => {
-          return {
-            role: m.sender === Sender.User ? 'user' : 'model',
-            parts: [{ text: m.text }]
-          };
-        });
+      // Prepare history. Use the messages before this one: the new question is sent
+      // separately below (with its category context), so including it here sent it twice.
+      const history = toApiHistory(messages);
 
       let finalQuery = input;
       if (session.category) {
@@ -294,6 +313,10 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
         makeStreamHandler(botMsgId)
       );
 
+      // The stream handler hides the loading indicator on the first chunk; an error reply
+      // arrives without any chunks, so hide it here too.
+      if (isSessionOnScreen(session.id)) setLoading(false);
+
       // Final update with grounding data
       const finalBotMsg: Message = {
         id: botMsgId,
@@ -317,6 +340,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     const userMsg = messages[userMsgIndex];
 
     if (!userMsg || userMsg.sender !== Sender.User) return;
+    if (loading) return; // One request at a time
 
     // Reset to state before the bot message
     const historyForRetry = messages.slice(0, index); 
@@ -324,12 +348,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
     setLoading(true);
     
     try {
-      const apiHistory = messages.slice(0, userMsgIndex)
-        .filter(m => m.id !== 'welcome')
-        .map(m => ({
-          role: m.sender === Sender.User ? 'user' : 'model',
-          parts: [{ text: m.text }]
-        }));
+      const apiHistory = toApiHistory(messages.slice(0, userMsgIndex));
 
       let finalQuery = userMsg.text;
       if (session.category) {
@@ -353,6 +372,8 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
         retryAttachments,
         makeStreamHandler(botMsgId)
       );
+
+      if (isSessionOnScreen(session.id)) setLoading(false);
 
       const finalBotMsg: Message = {
         id: botMsgId,
@@ -415,7 +436,10 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' }); // Use webm for browser compat
+        // Use the format the browser actually recorded in: Chrome records webm, but Safari
+        // (iPhone) records mp4. Drop the codec part, e.g. "audio/webm;codecs=opus".
+        const recordedType = (mediaRecorder.mimeType || 'audio/webm').split(';')[0];
+        const audioBlob = new Blob(audioChunksRef.current, { type: recordedType });
         
         // Convert Blob to Base64
         const reader = new FileReader();
@@ -425,7 +449,7 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
           const base64Data = base64String.split(',')[1]; // Remove header
           
           setLoading(true);
-          const transcription = await transcribeAudio(base64Data, 'audio/webm');
+          const transcription = await transcribeAudio(base64Data, recordedType);
           setLoading(false);
           
           if (transcription) {
@@ -462,27 +486,38 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
 
     stopSpeaking(); // Stop any current speech
     setSpeakingId(id);
+    // Checked after the speech request returns. The `speakingId` state cannot be used for
+    // this: inside this function it still holds the value from before setSpeakingId(id).
+    speakRequestRef.current = id;
 
     // Clean markdown before speaking
     const cleanText = text.replace(/[*#]/g, '');
 
     const audioBuffer = await generateSpeech(cleanText);
-    
-    if (audioBuffer && speakingId === id) { 
+
+    // The user pressed stop, or asked for another message, while this one was loading.
+    if (speakRequestRef.current !== id) return;
+
+    if (audioBuffer) {
        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
        audioContextRef.current = ctx;
        const source = ctx.createBufferSource();
        source.buffer = audioBuffer;
        source.connect(ctx.destination);
-       source.onended = () => setSpeakingId(null);
+       source.onended = () => {
+         // Ignore the "ended" event of a clip that was stopped to play another message.
+         if (sourceNodeRef.current === source) setSpeakingId(null);
+       };
        source.start();
        sourceNodeRef.current = source;
     } else {
+       speakRequestRef.current = null;
        setSpeakingId(null);
     }
   };
 
   const stopSpeaking = () => {
+    speakRequestRef.current = null;
     if (sourceNodeRef.current) {
       try { sourceNodeRef.current.stop(); } catch(e) {}
     }

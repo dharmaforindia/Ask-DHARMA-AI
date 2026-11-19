@@ -8,8 +8,15 @@ interface Props {
 
 const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
   const [isActive, setIsActive] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
   const [status, setStatus] = useState("Ready to Connect");
   const [error, setError] = useState<string | null>(null);
+
+  // Read by the animation loop, which would otherwise see a stale `isActive`.
+  const isActiveRef = useRef(false);
+  // Increases every time a session is stopped, so a start that is still connecting
+  // can tell that the user cancelled or left in the meantime.
+  const attemptRef = useRef(0);
 
   // Audio Contexts
   // We separate Input (16kHz for Gemini) and Output (24kHz for Playback) 
@@ -52,7 +59,7 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
     const dataArray = new Uint8Array(bufferLength);
 
     const draw = () => {
-      if (!isActive) return; // Stop if not active
+      if (!isActiveRef.current) return; // Stop if not active
       
       animationRef.current = requestAnimationFrame(draw);
       analyser.getByteFrequencyData(dataArray);
@@ -92,7 +99,9 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
   };
 
   const startSession = async () => {
+    const attempt = attemptRef.current;
     setError(null);
+    setIsConnecting(true);
     setStatus("Initialize Audio...");
 
     try {
@@ -109,6 +118,11 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
       // 3. Mic Access
       setStatus("Requesting Mic...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (attempt !== attemptRef.current) {
+        // Cancelled while the browser was asking for microphone permission.
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       micStreamRef.current = stream;
       const source = inputCtx.createMediaStreamSource(stream);
 
@@ -185,20 +199,30 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
         language
       );
 
+      // The user cancelled, left the page, or the connection failed while we were connecting.
+      if (attempt !== attemptRef.current) {
+        disconnect();
+        return;
+      }
+
       sendAudioRef.current = sendAudioChunk;
       disconnectRef.current = disconnect;
-      
+
+      isActiveRef.current = true;
       setIsActive(true);
+      setIsConnecting(false);
       setStatus("Listening...");
-      
+
       // Start viz
       visualize();
 
     } catch (err) {
       console.error(err);
+      // Already stopped (cancelled, or onError has shown its own message).
+      if (attempt !== attemptRef.current) return;
+      stopSession();
       setError("Microphone access failed or Connection rejected.");
       setStatus("Error");
-      stopSession();
     }
   };
 
@@ -216,6 +240,10 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
   };
 
   const stopSession = () => {
+    attemptRef.current += 1;
+    isActiveRef.current = false;
+    setIsConnecting(false);
+
     // 1. Disconnect API
     if (disconnectRef.current) disconnectRef.current();
     disconnectRef.current = null;
@@ -275,14 +303,14 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
          {error && <div className="text-red-500 text-sm">{error}</div>}
 
          <button
-           onClick={isActive ? stopSession : startSession}
+           onClick={isActive || isConnecting ? stopSession : startSession}
            className={`w-full md:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg tracking-wider transition-all transform hover:scale-105 active:scale-95 ${
              isActive 
                ? 'bg-red-600 hover:bg-red-700 text-white shadow-[0_0_20px_rgba(220,38,38,0.5)]' 
                : 'bg-black dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-black shadow-[0_0_20px_rgba(0,0,0,0.1)] dark:shadow-[0_0_20px_rgba(255,255,255,0.3)]'
            }`}
          >
-           {isActive ? 'END CONSULTATION' : 'START CONSULTATION'}
+           {isActive ? 'END CONSULTATION' : isConnecting ? 'CANCEL' : 'START CONSULTATION'}
          </button>
        </div>
     </div>
