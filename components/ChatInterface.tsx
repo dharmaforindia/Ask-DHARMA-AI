@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Message, Sender, ChatSession, Language, Attachment } from '../types';
 import { sendLegalQuery, transcribeAudio, generateSpeech } from '../services/geminiService';
+import { fileToAttachment } from '../services/fileUpload';
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
 import DharmaLogo from './DharmaLogo';
 
@@ -395,20 +396,12 @@ const ChatInterface: React.FC<Props> = ({ session, onUpdateSession, language, us
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const files = Array.from(e.target.files);
-      
+
       files.forEach((file: File) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64String = reader.result as string;
-          const base64Data = base64String.split(',')[1];
-          
-          setAttachments(prev => [...prev, {
-            mimeType: file.type,
-            data: base64Data,
-            name: file.name
-          }]);
-        };
-        reader.readAsDataURL(file);
+        // Photos are shrunk first so they fit the server's request size limit.
+        fileToAttachment(file)
+          .then(attachment => setAttachments(prev => [...prev, attachment]))
+          .catch(err => console.error("Could not read file", err));
       });
       
       // Reset input
