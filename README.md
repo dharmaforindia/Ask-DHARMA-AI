@@ -20,22 +20,27 @@ View your app in AI Studio: https://ai.studio/apps/drive/1IaZMmyITpJdTs0QmTKtVIN
 3. Run the app:
    `npm run dev`
 
-## Protect your Gemini API key
+`npm run dev` also runs the server function in `api/gemini.ts` locally, so chat, document scan
+and voice work without the Vercel CLI. `npm run preview` serves only the built page, without it.
 
-This app calls Gemini directly from the browser, so the build puts your Gemini API key into the
-public JavaScript. Anyone who opens the deployed site can copy the key and use your quota.
+## How the Gemini API key is kept secret
 
-Before you deploy, restrict the key in the Google Cloud console
-(APIs & Services → Credentials → your key):
+The browser never receives the Gemini API key. It sends its requests to `/api/gemini`, a Vercel
+server function (`api/gemini.ts`), which adds the key and calls Gemini. Voice mode gets a
+short-lived, single-use token from the same function instead of the key.
 
-1. Under **Application restrictions**, choose **Websites** and add only your site's domains.
-2. Under **API restrictions**, allow only the **Generative Language API**.
-3. Set a usage quota or a budget alert so misuse cannot run up a large bill.
+To deploy on Vercel:
 
-After you add the website restriction, test chat, document scan and voice mode on the deployed site.
+1. In the Vercel project, open **Settings → Environment Variables**.
+2. Add `GEMINI_API_KEY` with your Gemini API key, for the **Production** and **Preview**
+   environments. (`API_KEY` also works.)
+3. Redeploy. If the key is missing, the app shows its usual error message and the function log
+   says "GEMINI_API_KEY is missing".
 
-These steps reduce the risk but do not remove it. The full fix is to make the Gemini calls from a
-small server (for example a Firebase Cloud Function) that keeps the key secret.
+Anyone who uses the site can still send requests through `/api/gemini`, so set a usage quota or
+a budget alert on the key in the Google Cloud console. If the key was ever built into an earlier
+version of the site, create a new key and delete the old one: copies of the old JavaScript may
+still contain it.
 
 ## Advocate suite (Claude skills)
 
