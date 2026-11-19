@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { analyzeLegalDocument } from '../services/geminiService';
+import { fileToAttachment } from '../services/fileUpload';
 
 const DocumentAnalyzer: React.FC = () => {
   const [image, setImage] = useState<string | null>(null);
@@ -23,14 +24,14 @@ const DocumentAnalyzer: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setMimeType(file.type);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64 = reader.result as string;
-        setImage(base64); 
-        setAnalysis(""); // Clear previous analysis
-      };
-      reader.readAsDataURL(file);
+      // Photos are shrunk first so they fit the server's request size limit.
+      fileToAttachment(file)
+        .then(attachment => {
+          setMimeType(attachment.mimeType);
+          setImage(`data:${attachment.mimeType};base64,${attachment.data}`);
+          setAnalysis(""); // Clear previous analysis
+        })
+        .catch(err => console.error("Could not read file", err));
     }
   };
 

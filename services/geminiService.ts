@@ -1,9 +1,27 @@
 import { GoogleGenAI, LiveServerMessage, Modality, Session } from "@google/genai";
-import { SYSTEM_INSTRUCTION } from "../constants";
 import { Attachment } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// All Gemini requests go through the server function in api/gemini.ts, which holds the
+// Gemini API key. The browser never sees the key.
+const API_URL = "/api/gemini";
+
+// Vercel rejects request bodies over 4.5 MB. Stay a little under that.
+const MAX_REQUEST_BYTES = 4_200_000;
+
+export const FILE_TOO_LARGE_MESSAGE =
+  "This file is too large to send. Please use a file under about 3 MB, or a smaller photo or scan.";
+
+const CHAT_ERROR_MESSAGE = "An error occurred while consulting DHARMA. Please try again.";
+
+const byteSize = (text: string) => new Blob([text]).size;
+
+const post = (body: string, signal?: AbortSignal) =>
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    signal,
+  });
 
 // --- Types ---
 interface ChatResponse {
@@ -11,10 +29,19 @@ interface ChatResponse {
   groundingUrls: string[];
 }
 
+type HistoryPart = { text?: string; inlineData?: { mimeType: string; data: string } };
+type HistoryEntry = { role: string; parts: HistoryPart[] };
+
+// Earlier files are dropped from the history when the request would be too large.
+const textOnlyHistory = (history: HistoryEntry[]): HistoryEntry[] =>
+  history
+    .map(entry => ({ ...entry, parts: entry.parts.filter(part => part.text !== undefined) }))
+    .filter(entry => entry.parts.length > 0);
+
 // --- Text Chat Service ---
 export const sendLegalQuery = async (
   query: string,
-  history: { role: string; parts: { text?: string; inlineData?: { mimeType: string; data: string } }[] }[],
+  history: HistoryEntry[],
   language: string,
   useReasoning: boolean = false,
   useSearch: boolean = false,
@@ -22,134 +49,84 @@ export const sendLegalQuery = async (
   attachments: Attachment[] = [],
   onStreamUpdate?: (text: string) => void
 ): Promise<ChatResponse> => {
-  
-  // Default to Gemini 3 models
-  // If attachments are present (images/video/pdf), ensure we use a model that supports them well.
-  // Gemini 3 Flash/Pro support multimodal inputs.
-  let modelId = useReasoning ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
-  
-  const tools = [];
-  // Enable search if requested OR if Case Law is needed (as we need to search for judgments)
-  if (useSearch || useCaseLaw) {
-    tools.push({ googleSearch: {} });
-  }
-
-  let additionalInstruction = `\nIMPORTANT: Respond in the ${language} language.`;
-  
-  if (useCaseLaw) {
-    additionalInstruction += "\nCITATION MODE: Actively search for and cite specific Supreme Court of India or High Court judgments, case names, and legal precedents relevant to this query. Mention the case name and year clearly.";
-  }
-  
-  const config: any = {
-    systemInstruction: SYSTEM_INSTRUCTION + additionalInstruction,
-    tools: tools.length > 0 ? tools : undefined,
+  const payload = {
+    action: "chat",
+    query,
+    history,
+    language,
+    useReasoning,
+    useSearch,
+    useCaseLaw,
+    attachments: attachments.map(att => ({ mimeType: att.mimeType, data: att.data })),
   };
 
-  if (useReasoning) {
-    // Max thinking budget for Gemini 3 Pro
-    config.thinkingConfig = { thinkingBudget: 32768 }; 
+  let body = JSON.stringify(payload);
+  if (byteSize(body) > MAX_REQUEST_BYTES) {
+    body = JSON.stringify({ ...payload, history: textOnlyHistory(history) });
+  }
+  if (byteSize(body) > MAX_REQUEST_BYTES) {
+    return { text: FILE_TOO_LARGE_MESSAGE, groundingUrls: [] };
   }
 
   try {
-    const chat = ai.chats.create({
-      model: modelId,
-      config: config,
-      history: history,
-    });
-
-    let messageContent: any = query;
-
-    if (attachments && attachments.length > 0) {
-      // Construct parts: attachments first, then text
-      const parts = attachments.map(att => ({
-        inlineData: {
-          mimeType: att.mimeType,
-          data: att.data
-        }
-      }));
-      parts.push({ text: query } as any);
-      messageContent = parts;
+    const response = await post(body);
+    if (!response.ok || !response.body) {
+      throw new Error(`Server returned ${response.status}`);
     }
 
-    // Stream Mode
-    if (onStreamUpdate) {
-      const resultStream = await chat.sendMessageStream({ message: messageContent });
-      let fullText = "";
-      const groundingUrls: string[] = [];
-      
-      for await (const chunk of resultStream) {
-        const chunkText = chunk.text;
-        if (chunkText) {
-          fullText += chunkText;
-          onStreamUpdate(fullText);
-        }
+    // The server streams newline-delimited JSON: {"text"} pieces, then {"done", "groundingUrls"}.
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffered = "";
+    let fullText = "";
+    let groundingUrls: string[] = [];
+    let failed = false;
 
-        // Extract grounding metadata from chunks
-        const chunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        if (chunks) {
-          chunks.forEach((c: any) => {
-            if (c.web?.uri && !groundingUrls.includes(c.web.uri)) {
-              groundingUrls.push(c.web.uri);
-            }
-          });
-        }
+    const handleLine = (line: string) => {
+      if (!line.trim()) return;
+      const message = JSON.parse(line);
+      if (typeof message.text === "string") {
+        fullText += message.text;
+        onStreamUpdate?.(fullText);
       }
+      if (Array.isArray(message.groundingUrls)) groundingUrls = message.groundingUrls;
+      if (message.error) failed = true;
+    };
 
-      return { text: fullText, groundingUrls };
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffered += decoder.decode(value, { stream: true });
+      let newline;
+      while ((newline = buffered.indexOf("\n")) >= 0) {
+        handleLine(buffered.slice(0, newline));
+        buffered = buffered.slice(newline + 1);
+      }
     }
+    handleLine(buffered + decoder.decode());
 
-    // Classic Mode (Fallback)
-    const response = await chat.sendMessage({ message: messageContent });
-    
-    // Extract Text
-    const text = response?.text || "I apologize, I could not generate a response.";
-
-    // Extract Grounding
-    const groundingUrls: string[] = [];
-    // Fix: Safe access to response and candidates
-    const chunks = response?.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    if (chunks) {
-      chunks.forEach((chunk: any) => {
-        if (chunk.web?.uri) groundingUrls.push(chunk.web.uri);
-      });
-    }
-
-    return { text, groundingUrls };
-
+    if (failed) throw new Error("The reply stream was interrupted");
+    return { text: fullText || "I apologize, I could not generate a response.", groundingUrls };
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return { text: "An error occurred while consulting DHARMA. Please try again.", groundingUrls: [] };
+    return { text: CHAT_ERROR_MESSAGE, groundingUrls: [] };
   }
 };
 
 // --- Document Analysis Service ---
 export const analyzeLegalDocument = async (
-  base64Data: string, 
+  base64Data: string,
   mimeType: string,
   userPrompt: string
 ): Promise<string> => {
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview', // Pro is better for OCR and Analysis
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Data
-            }
-          },
-          {
-            text: `Analyze this legal document in the context of Indian Law. ${userPrompt}`
-          }
-        ]
-      },
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION
-      }
-    });
+  const body = JSON.stringify({ action: "analyze", file: { mimeType, data: base64Data }, prompt: userPrompt });
+  if (byteSize(body) > MAX_REQUEST_BYTES) return FILE_TOO_LARGE_MESSAGE;
 
-    return response?.text || "Could not analyze the document.";
+  try {
+    const response = await post(body);
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const result = await response.json();
+    return result.text || "Could not analyze the document.";
   } catch (error) {
     console.error("Document Analysis Error:", error);
     return "Failed to analyze document. Please ensure the file is clear and supported.";
@@ -159,24 +136,17 @@ export const analyzeLegalDocument = async (
 // --- Audio Services ---
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
+  const body = JSON.stringify({ action: "transcribe", file: { mimeType, data: base64Audio } });
+  if (byteSize(body) > MAX_REQUEST_BYTES) {
+    console.error("Transcription Error: recording is too long to send");
+    return "";
+  }
+
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              mimeType: mimeType,
-              data: base64Audio
-            }
-          },
-          {
-            text: "Transcribe this audio exactly as spoken. Return only the text."
-          }
-        ]
-      }
-    });
-    return response?.text || "";
+    const response = await post(body);
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
+    const result = await response.json();
+    return result.text || "";
   } catch (error) {
     console.error("Transcription Error", error);
     return "";
@@ -185,26 +155,16 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
 
 export const generateSpeech = async (text: string): Promise<AudioBuffer | null> => {
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: text }] }],
-      config: {
-        responseModalities: [Modality.AUDIO],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: 'Kore' },
-          },
-        },
-      },
-    });
+    const response = await post(JSON.stringify({ action: "speech", text }));
+    if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
-    const base64Audio = response?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) return null;
+    // The server returns raw 16-bit PCM audio.
+    const sampleRate = Number(response.headers.get("x-sample-rate")) || 24000;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.byteLength < 2) return null;
 
-    // Decode PCM (24kHz is standard for this model). No AudioContext is needed to build the
-    // buffer; creating one here on every call left audio contexts open.
-    return pcmToAudioBuffer(base64Audio, null, 24000);
-
+    // No AudioContext is needed to build the buffer; the caller plays it.
+    return pcmBytesToAudioBuffer(bytes, null, sampleRate);
   } catch (error) {
     console.error("TTS Error", error);
     return null;
@@ -249,22 +209,26 @@ export function createPcmBlob(data: Float32Array): { data: string, mimeType: str
   };
 }
 
-// Base64 (Model Output) -> Int16 -> Float32 -> AudioBuffer
-export function pcmToAudioBuffer(base64: string, ctx: BaseAudioContext | null, sampleRate: number = 24000): AudioBuffer {
-  const bytes = decode(base64);
-  // 16-bit samples: ignore a trailing odd byte instead of throwing.
-  const dataInt16 = new Int16Array(bytes.buffer, 0, Math.floor(bytes.byteLength / 2));
+// 16-bit PCM bytes -> Float32 -> AudioBuffer
+function pcmBytesToAudioBuffer(bytes: Uint8Array, ctx: BaseAudioContext | null, sampleRate: number): AudioBuffer {
+  // Copy into a fresh buffer so the samples are aligned; ignore a trailing odd byte.
+  const sampleCount = Math.floor(bytes.byteLength / 2);
+  const dataInt16 = new Int16Array(bytes.slice(0, sampleCount * 2).buffer);
 
-  // Create buffer matching the model's output rate (usually 24kHz)
   const buffer = ctx
-    ? ctx.createBuffer(1, dataInt16.length, sampleRate)
-    : new AudioBuffer({ numberOfChannels: 1, length: dataInt16.length, sampleRate });
+    ? ctx.createBuffer(1, sampleCount, sampleRate)
+    : new AudioBuffer({ numberOfChannels: 1, length: sampleCount, sampleRate });
   const channelData = buffer.getChannelData(0);
-  
-  for (let i = 0; i < dataInt16.length; i++) {
+
+  for (let i = 0; i < sampleCount; i++) {
     channelData[i] = dataInt16[i] / 32768.0;
   }
   return buffer;
+}
+
+// Base64 (Model Output) -> Int16 -> Float32 -> AudioBuffer
+export function pcmToAudioBuffer(base64: string, ctx: BaseAudioContext | null, sampleRate: number = 24000): AudioBuffer {
+  return pcmBytesToAudioBuffer(decode(base64), ctx, sampleRate);
 }
 
 // --- Live Connection ---
@@ -279,22 +243,27 @@ export const connectLiveDharma = async (
   callbacks: LiveConnectionCallbacks,
   language: string
 ) => {
-  
-  const langInstruction = `\nIMPORTANT: Speak in ${language}. Keep responses legal but concise.`;
-
   // ai.live.connect resolves when the socket opens and never rejects on its own,
   // so a connection that never opens would wait forever without this timeout.
   const LIVE_CONNECT_TIMEOUT_MS = 15000;
 
-  const sessionPromise = ai.live.connect({
-    model: 'gemini-2.5-flash-native-audio-preview-12-2025',
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } },
-      },
-      systemInstruction: SYSTEM_INSTRUCTION + langInstruction,
-    },
+  // The server creates a short-lived, single-use token for this consultation. The model,
+  // voice and system instruction are locked into the token on the server.
+  const tokenResponse = await post(
+    JSON.stringify({ action: "live-token", language }),
+    AbortSignal.timeout(LIVE_CONNECT_TIMEOUT_MS)
+  );
+  if (!tokenResponse.ok) {
+    throw new Error(`Could not start a voice session (server returned ${tokenResponse.status})`);
+  }
+  const { token, model } = await tokenResponse.json();
+
+  // Ephemeral tokens only work with the v1alpha Live API.
+  const liveAi = new GoogleGenAI({ apiKey: token, httpOptions: { apiVersion: "v1alpha" } });
+
+  const sessionPromise = liveAi.live.connect({
+    model,
+    config: { responseModalities: [Modality.AUDIO] },
     callbacks: {
       onopen: () => console.log("DHARMA Live Connected"),
       onmessage: (msg: LiveServerMessage) => {
@@ -303,7 +272,7 @@ export const connectLiveDharma = async (
         if (audioData) {
           callbacks.onAudio(audioData);
         }
-        
+
         // Handle Interruption
         if (msg.serverContent?.interrupted) {
           console.log("Model interrupted");

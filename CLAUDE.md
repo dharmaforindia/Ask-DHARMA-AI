@@ -6,11 +6,17 @@ Ask DHARMA is a legal AI assistant for Indian law (Constitutional, Criminal, Civ
 It is a React 18 + TypeScript + Vite + Tailwind app.
 
 - `App.tsx` is the main app. UI components are in `components/`.
-- `services/geminiService.ts` calls Google Gemini. `services/firebase.ts` sets up Firebase.
-- `constants.ts` and `types.ts` hold shared data and types.
-- Commands: `npm install`, `npm run dev`, `npm run build` (runs `tsc` and then `vite build`).
-- `GEMINI_API_KEY` goes in `.env.local` (`vite.config.ts` also accepts `API_KEY`). Never commit it.
-- The Gemini key ends up in the public browser bundle. See "Protect your Gemini API key" in `README.md`.
+- `api/gemini.ts` is a Vercel server function (`POST /api/gemini`). It is the only code that sees
+  the Gemini API key, and it holds the models and the system instruction. Keep it self-contained
+  (npm imports only) so Vercel can deploy it.
+- `services/geminiService.ts` is the browser side: it calls `/api/gemini`, never Gemini with a key.
+  Voice mode connects to Gemini Live with a short-lived token from the server.
+- `services/fileUpload.ts` shrinks photos so requests stay under Vercel's 4.5 MB body limit.
+- `services/firebase.ts` sets up Firebase. `constants.ts` and `types.ts` hold shared data and types.
+- Commands: `npm install`, `npm run dev` (also runs `api/gemini.ts` locally), `npm run build`
+  (runs `tsc` and then `vite build`).
+- `GEMINI_API_KEY` goes in `.env.local` for local work and in Vercel's environment variables for
+  deploys (`API_KEY` also works). Never commit it, and never send it to the browser.
 
 ## How to work: Fable mode (always on)
 
