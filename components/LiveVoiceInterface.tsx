@@ -16,6 +16,9 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
   // to avoid sample rate mismatch issues and simplify processing.
   const inputContextRef = useRef<AudioContext | null>(null);
   const outputContextRef = useRef<AudioContext | null>(null);
+  // The microphone stream. Closing the AudioContext does not turn the mic off;
+  // its tracks must be stopped.
+  const micStreamRef = useRef<MediaStream | null>(null);
   
   // Playback State
   const nextStartTimeRef = useRef<number>(0);
@@ -106,6 +109,7 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
       // 3. Mic Access
       setStatus("Requesting Mic...");
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
       const source = inputCtx.createMediaStreamSource(stream);
 
       // 4. Analyzer for Viz
@@ -217,10 +221,16 @@ const LiveVoiceInterface: React.FC<Props> = ({ language }) => {
     disconnectRef.current = null;
     sendAudioRef.current = null;
 
-    // 2. Stop Viz
+    // 2. Turn the microphone off
+    if (micStreamRef.current) {
+      micStreamRef.current.getTracks().forEach(track => track.stop());
+      micStreamRef.current = null;
+    }
+
+    // 3. Stop Viz
     if (animationRef.current) cancelAnimationFrame(animationRef.current);
 
-    // 3. Close Contexts
+    // 4. Close Contexts
     if (inputContextRef.current) {
       inputContextRef.current.close();
       inputContextRef.current = null;

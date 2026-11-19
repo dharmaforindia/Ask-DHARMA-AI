@@ -9,7 +9,8 @@ It is a React 18 + TypeScript + Vite + Tailwind app.
 - `services/geminiService.ts` calls Google Gemini. `services/firebase.ts` sets up Firebase.
 - `constants.ts` and `types.ts` hold shared data and types.
 - Commands: `npm install`, `npm run dev`, `npm run build` (runs `tsc` and then `vite build`).
-- `GEMINI_API_KEY` goes in `.env.local`. Never commit it.
+- `GEMINI_API_KEY` goes in `.env.local` (`vite.config.ts` also accepts `API_KEY`). Never commit it.
+- The Gemini key ends up in the public browser bundle. See "Protect your Gemini API key" in `README.md`.
 
 ## How to work: Fable mode (always on)
 
